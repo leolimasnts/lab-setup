@@ -17,8 +17,11 @@ set shiftwidth=4
 set smartindent
 
 "" Alt+j and Alt+k to move line
-nnoremap <A-j> :m '>+1<CR>gv=gv
-nnoremap <A-k> :m '<-2<CR>gv=gv
+nnoremap <A-j> :m .+1<CR>==
+nnoremap <A-k> :m .-2<CR>==
+
+vnoremap <A-j> :m '>+1<CR>gv=gv
+vnoremap <A-k> :m '<-2<CR>gv=gv
 
 "" theme :p
 
