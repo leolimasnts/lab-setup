@@ -41,8 +41,7 @@ setup_font() {
   mkdir -p "$HOME/.local/share/fonts"
 
   git clone "https://github.com/leolimasnts/lab-setup" "$tmp_dir"
-  cp "$tmp_dir" "$HOME/.local/share/fonts"
-  rm -rf /tmp/lab-setup
+  cp "$tmp_dir/fonts/"* "$HOME/.local/share/fonts"
 
   fc-cache -f -v
 
