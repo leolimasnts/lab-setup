@@ -25,16 +25,30 @@ ask_to_execute() {
 }
 
 setup_vim() {
-  true
+  echo "    Setting up Vim Config"
+  curl -fsSl "https://raw.githubusercontent.com/leolimasnts/lab-setup/main/.vimrc" -o "$HOME/.vimrc"
+  echo "    Vim Config setted up successfully!"
 }
 
 setup_font() {
-  echo "    Downloading Maple Mono fonts..."
+  echo "    Downloading fonts..."
 
-  # creating directory
-  local dir="$HOME/.local/share/fonts"
-  mkdir -p dir
+  local tmp_dir
+  tmp_dir=$(mktemp -d)
 
+  trap 'rm -rf "$tmp_dir"' EXIT
+
+  mkdir -p "$HOME/.local/share/fonts"
+
+  git clone "https://github.com/leolimasnts/lab-setup" "$tmp_dir"
+  cp "$tmp_dir" "$HOME/.local/share/fonts"
+  rm -rf /tmp/lab-setup
+
+  fc-cache -f -v
+
+  rm -rf "$tmp_dir"
+  trap - EXIT
+  echo "    Fonts installed successfully!"
 }
 
 setup_keyboard() {
@@ -52,12 +66,15 @@ main() {
   fi
 
   if ask_to_execute "Remap CapsLock to Esc?"; then
-    setup_caps
-  fi
-
-  if ask_to_execute "Add Maple Mono to system?"; then
     setup_keyboard
   fi
 
-  echo "Finishing Setup..."
+  if ask_to_execute "Install Maple Mono?"; then
+    setup_font
+  fi
+
+  echo "The End..."
+  read -p "Press any key to continue" </dev/tty
 }
+
+main
