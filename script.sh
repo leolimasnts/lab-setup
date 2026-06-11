@@ -85,6 +85,8 @@ setup_keyboard() {
 main() {
   echo "Initializing Setup..."
 
+  check_dependencies
+
   if ask_to_execute "Setup Vim config?"; then
     setup_vim
   fi
