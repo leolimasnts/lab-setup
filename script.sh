@@ -1,32 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-check_dependencies() {
-  echo "Checking dependencies..."
-  local deps=(curl git)
-  for cmd in "${deps[@]}"; do
-    if ! command -v "$cmd" &>/dev/null; then
-      echo "Error: '$cmd" is required but not installed. Exiting.
-      exist 1
-    fi
-  done
-  echo "All dependencies avaliable! Running the script..."
+require() {
+  command -v "$1" >/dev/null 2>&1
 }
 
-ask_to_execute() {
-  local msg="$1"
-  local ans_raw=""
+ask() {
+  local ans
 
-  read -p "$msg [Y/n]:" ans_raw </dev/tty
+  read -rp "$1 [Y/n]: " ans </dev/tty
 
-  if [ -z "$ans_raw" ]; then
-    ans_raw="y"
-  fi
-
-  local ans="${ans_raw,,}"
-
-  case "$ans" in
-  y | s | yes | sim)
+  case "${ans,,}" in
+  "" | y | yes | s | sim)
     return 0
     ;;
   *)
@@ -37,70 +22,86 @@ ask_to_execute() {
 }
 
 setup_vim() {
-  echo "    Setting up Vim Config"
 
-  curl -fsSl "https://raw.githubusercontent.com/leolimasnts/lab-setup/main/.vimrc" -o "$HOME/.vimrc"
+  require curl || {
+    echo "Skipping Vim: missing curl" >&2
+    return
+  }
+
+  echo "  Setting up Vim Config"
+
+  local tmp
+  tmp=$(mktemp)
+
+  curl -fsSL "https://raw.githubusercontent.com/leolimasnts/lab-setup/main/.vimrc" -o "$tmp"
 
   if [ -f "$HOME/.vimrc" ]; then
-    mv "$HOME/.vimrc" "$HOME/.vimrc.bak"
-    echo "    Backed up existing .vimrc to .vimrc.bak"
+    local backup
+    backup="$HOME/.vimrc.bak-$(date +%Y%m%d-%H%M%S)"
+    mv "$HOME/.vimrc" "$backup"
+
+    echo "  Backed up existing .vimrc"
   fi
 
-  echo "    Vim Config set up successfully!"
+  mv "$tmp" "$HOME/.vimrc"
+
+  echo "  Vim Config installed"
 }
 
 setup_font() {
-  if ! command -v fc-cache $ >/dev/null; then
-    echo "    Skipping fonts: fc-cache tool not found"
-    return 0
-  fi
-  echo "    Downloading fonts..."
 
-  local tmp_dir
-  tmp_dir=$(mktemp -d)
+  require tar || {
+    echo "Skipping Fonts: missing tar" >&2
+    return
+  }
+  require fc-cache || {
+    echo "Skipping Fonts: missing fc-cache" >&2
+    return
+  }
+  require curl || {
+    echo "Skipping Fonts: missing curl" >&2
+    return
+  }
 
-  trap 'rm -rf "$tmp_dir"' EXIT
+  echo "  Installing fonts..."
 
   mkdir -p "$HOME/.local/share/fonts"
 
-  git clone --depth 1 "https://github.com/leolimasnts/lab-setup" "$tmp_dir"
-  cp "$tmp_dir/fonts/"* "$HOME/.local/share/fonts"
+  curl -fsSL "https://github.com/leolimasnts/lab-setup/archive/refs/heads/main.tar.gz" |
+    tar -xz --strip-components=2 -C "$HOME/.local/share/fonts/" "lab-setup-main/fonts/"
 
-  fc-cache -f -v
-  echo "    Fonts installed successfully!"
+  fc-cache -f >/dev/null
+
+  echo "  Fonts installed"
 }
 
 setup_keyboard() {
-  if [ -z "${DISPLAY:-}" ]; then
+
+  [ -n "${DISPLAY:-}" ] || {
     echo "Skipping keyboard remap: No X11 Display detected"
-    return 0
-  fi
-  echo "    Remapping CapsLock to Esc..."
-  xmodmap -e "clear Lock"
+    return
+  }
+  require setxkbmap || {
+    echo "Skipping keyboard remap: missing setxkbmap" >&2
+    return
+  }
+
+  echo "  Remapping CapsLock to Esc..."
+
+  setxkbmap -option
   setxkbmap -option caps:escape
-  echo "    Keyboard remapped successfully!"
-  echo "    To revert, run: setxkbmap -option"
+
+  echo "  CapsLock remapped to Esc"
 }
 
 main() {
   echo "Initializing Setup..."
 
-  check_dependencies
+  ask "Install Vim config?" && setup_vim
+  ask "Remap CapsLock to Esc?" && setup_keyboard
+  ask "Install Fonts?" && setup_font
 
-  if ask_to_execute "Setup Vim config?"; then
-    setup_vim
-  fi
-
-  if ask_to_execute "Remap CapsLock to Esc?"; then
-    setup_keyboard
-  fi
-
-  if ask_to_execute "Install Maple Mono?"; then
-    setup_font
-  fi
-
-  echo "The End..."
-  read -p "Press any key to continue" </dev/tty
+  echo "Done"
 }
 
 main
